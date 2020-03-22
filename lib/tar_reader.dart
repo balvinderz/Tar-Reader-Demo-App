@@ -2,23 +2,23 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'dart:typed_data';
+import 'package:tarreadersampleapp/tar_info.dart';
 import 'package:tarreadersampleapp/tar_utils.dart';
 
 import 'tar_headers_constants.dart' as TarHeadersConstants;
-import 'package:tarreadersampleapp/tar_headers_constants.dart';
 class TarReader{
   int _filePointer = 0;
   String path = "";
   bool _loaded = false;
   RandomAccessFile tarFile;
 
-  List<String> memberNames=[];
+  List<TarInfo> memberNames=[];
   File f;
 
-  Uint8List fileContents;
+  Uint8List _fileContents;
   void loadFromBytes(Uint8List bytes) // can't get assets folder directly so had to use the bytes directly
   {
-    this.fileContents = bytes;
+    this._fileContents = bytes;
   }
   Future<bool> loadFromFile(String path) async
   {
@@ -26,7 +26,7 @@ class TarReader{
 
       f= File(path);
       tarFile =await  f.open();
-      fileContents = await f.readAsBytes();
+      _fileContents = await f.readAsBytes();
       _loaded = true;
           return true;
     }
@@ -47,11 +47,11 @@ class TarReader{
     }
 
   }
-  List<String> readMembers(){
+  List<TarInfo> readMembers(){
     try{
       while(true)
         {
-          String member = next(); // TODO Make it return TarFileObject
+          TarInfo member = next(); // TODO Make it return TarFileObject
           print(member);
           memberNames.add(member);
 
@@ -63,15 +63,17 @@ class TarReader{
     return memberNames;
   }
 
-  String next() {
-    final subList  = fileContents.sublist(_filePointer,_filePointer+512);
-    String nameOfFile = utf8.decode(subList.sublist(TarHeadersConstants.nameOffset,TarHeadersConstants.nameOffset+TarHeadersConstants.nameBytes));
+  TarInfo next() {
+    final subList  = _fileContents.sublist(_filePointer,_filePointer+TarHeadersConstants.BLOCKSIZE);
+    String nameOfFile = utf8.decode(subList.sublist(TarHeadersConstants.nameOffset,TarHeadersConstants.nameOffset+TarHeadersConstants.nameBytes)).replaceAll("\x00", "");
     int size = octToDecimal(int.parse(utf8.decode(subList.sublist(TarHeadersConstants.sizeOffset,TarHeadersConstants.sizeOffset+TarHeadersConstants.sizeBytes))));
-    _filePointer+=512+size;
-    if(_filePointer%512!=0)
-      _filePointer=_filePointer-_filePointer%512+512;
+    Uint8List tarFileContent = _fileContents.sublist(_filePointer+TarHeadersConstants.BLOCKSIZE,_filePointer+TarHeadersConstants.BLOCKSIZE+size);
+      TarInfo currentFile = TarInfo(name: nameOfFile,size: size,fileContents: tarFileContent);
+    _filePointer+=TarHeadersConstants.BLOCKSIZE+size;
+    if(_filePointer%TarHeadersConstants.BLOCKSIZE!=0)
+      _filePointer=_filePointer-_filePointer%TarHeadersConstants.BLOCKSIZE+TarHeadersConstants.BLOCKSIZE;
     //print(_filePointer);
-    return nameOfFile;
+    return currentFile;
   }
 
 }

@@ -4,6 +4,7 @@ import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart' show rootBundle;
 import 'package:path_provider/path_provider.dart';
+import 'package:tarreadersampleapp/tar_info.dart';
 import 'package:tarreadersampleapp/tar_reader.dart';
 
 void main() {
@@ -35,14 +36,31 @@ class _TarReaderDemoState extends State<TarReaderDemo> {
               print(content);
               TarReader tarReader = TarReader();
               tarReader.loadFromBytes(content);
-              List<String> namesOfFiles = tarReader.readMembers();
+              List<TarInfo> namesOfFiles = tarReader.readMembers();
               List<Widget> listTiles = namesOfFiles
-                  .map((e) => ListTile(
+                  .map((file) => ListTile(
                         leading: Icon(Icons.insert_drive_file),
-                        title: Text(e),
+                        title: Text(file.name),
+                        onTap:  (){
+                          if(isImage(file.name))
+                            {
+                              print("idhar aaya mai");
+                              showDialog(context: context,
+                              barrierDismissible: true,
+                                builder: (context)=> Dialog(
+                                  child: Image.memory(file.fileContents),
+                                )
+                              );
+                            }
+                          else
+                            Scaffold.of(context).showSnackBar(SnackBar(content: Text("Not Supported Right Now",style: TextStyle(
+                              color: Colors.white
+                            ),),backgroundColor: Colors.red,));
+              },
                       ))
                   .toList();
-              return Column(children: listTiles);
+              tarReader.closeTarFile();
+              return ListView(children: listTiles);
             } else
               return Center(
                 child: CircularProgressIndicator(
@@ -53,5 +71,12 @@ class _TarReaderDemoState extends State<TarReaderDemo> {
         ),
       ),
     );
+  }
+  bool isImage(String fileName)
+  {
+    fileName= fileName.toLowerCase();
+    if(fileName.endsWith("png") || fileName.endsWith("jpeg") || fileName.endsWith("jpg"))
+      return true;
+    return false;
   }
 }
